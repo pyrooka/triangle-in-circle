@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Trinagle-in-Circle</title>
+</head>
+<body onload="init()">
+  <ul style="list-style: none">
+    <li style="text-align: center">
+      <span>Intervall</span><input type="number" id="timeout"><span>ms</span>
+      <button id="startButton" onclick="start()" style="display: block; margin: auto;">Start</button>
+      <div style="text-align: center">
+        <span>Count: </span><span id="count">0</span>
+        <br>
+        <span>Probability: </span><span id="probability">-</span>
+      </div>
+    </li>
+    <li>
+      <canvas id="main" width="600" height="600" style="display: block; margin: auto;"></canvas>
+    </li>
+  </ul>
+  <script>
+    let count = 0
+    let results = 0
+    let probability = 0
+
+    const canvas = document.getElementById('main')
+    const context = canvas.getContext('2d')
+
+    const countElement = document.getElementById('count')
+    const probElement = document.getElementById('probability')
+
+    // Run on load.
+    function init() {
+      drawBase()
+    }
+
+    // Start working.
+    function start() {
+      // Disable the start button.
+      document.getElementById('startButton').setAttribute('disabled', true)
+
+      // Get the timeout.
+      const timeout = parseInt(document.getElementById('timeout').value)
+
+      // Do the real work.
+      iterate(timeout)
+    }
+
+    // Randomize points, draw them, calculate then recursively call itself again.
+    function iterate(timeout) {
+      setTimeout(() => {
+        // Randomized points.
+        const points = []
+
+        // Clear the canvas.
+        context.clearRect(0, 0, canvas.width, canvas.height)
+
+        // Draw the base circle.
+        drawBase()
+
+        // Randomize three points on the arc of the cirlce.
+        // Note: always use radians!
+        for (let i = 0; i < 3; ++i) {
+          const randAngle = Math.random() * 2 * Math.PI
+          const x = 300 + Math.cos(randAngle) * 250
+          const y = 300 + Math.sin(randAngle) * 250
+
+          points.push([x, y, randAngle])
+
+          // Draw the points on the canvas. The last one will be green.
+          drawCircle(context, x, y, 4, true, i == 2 ? 'green' : 'orange')
+        }
+
+        // Get the points on the opposite side on the arc.
+        const firstOpposite = getOppositePoint(points[0][2])
+        drawCircle(context, firstOpposite[0], firstOpposite[1], 4, true, 'blue')
+
+        const secondOpposite = getOppositePoint(points[1][2])
+        drawCircle(context, secondOpposite[0], secondOpposite[1], 4, true, 'blue')
+
+        // Transform the coordinates. Center to (0,0).
+        firstOpposite[0] -= 300
+        firstOpposite[1] = (firstOpposite[1] - 300) * -1
+        secondOpposite[0] -= 300
+        secondOpposite[1] = (secondOpposite[1] - 300) * -1
+
+        let correct = false
+
+        // Get the angles in radian from atan2 (from -PI to PI)
+        const first = Math.atan2(firstOpposite[1], firstOpposite[0])
+        const second = Math.atan2(secondOpposite[1], secondOpposite[0])
+        const orig = Math.atan2((points[2][1] - 300) * -1, points[2][0] - 300)
+
+        // Just a sorting.
+        const oppositePoints = [first]
+        if (first < second) {
+          oppositePoints.push(second)
+        } else {
+          oppositePoints.unshift(second)
+        }
+
+        // Make the decision.
+        if (Math.abs(oppositePoints[0] - oppositePoints[1]) < Math.PI) {
+          if (oppositePoints[0] < orig && orig < oppositePoints[1]) correct = true
+        }
+        else {
+          if (oppositePoints[0] < orig && orig < oppositePoints[1]) correct = false
+          else correct = true
+        }
+
+        // Display the triangle with a filled color based on our decision.
+        drawTriangle(context, points[0], points[1], points[2], true, correct ? 'green' : 'red')
+
+        // Update the counters.
+        count++
+        if (correct) results++
+
+        // Display the results.
+        countElement.innerText = count
+        probElement.innerText = (results / count).toFixed(3)
+
+        // Call itself again.
+        iterate(timeout)
+      }, timeout)
+    }
+
+    // Get opposite of a point on the arc of the circle.
+    function getOppositePoint(angle) {
+      let rotation = angle - Math.PI
+      if (rotation < 0) rotation + 2 * Math.PI
+
+      return [
+        300 + Math.cos(rotation) * 250,
+        300 + Math.sin(rotation) * 250,
+        rotation,
+      ]
+    }
+
+    // Draw the circle with it's center point.
+    function drawBase() {
+      const canvas = document.getElementById('main')
+      const context = canvas.getContext('2d')
+
+      // Main circle.
+      drawCircle(context, 300, 300, 250)
+
+      // Center.
+      drawCircle(context, 300, 300, 2, true, 'black')
+    }
+
+    // Circle drawing.
+    function drawCircle(context, x, y, radius, fill, colour) {
+      context.beginPath()
+      if (colour) context.fillStyle = colour
+      context.arc(x, y, radius, 0, 2 * Math.PI)
+      if (fill) context.fill()
+      else context.stroke()
+    }
+
+    // Draw triangle.
+    function drawTriangle(context, p1, p2, p3, fill, colour) {
+      context.beginPath()
+      context.fillStyle = colour
+      context.moveTo(p1[0], p1[1])
+      context.lineTo(p2[0], p2[1])
+      context.lineTo(p3[0], p3[1])
+      if (fill) context.fill()
+      else context.stroke()
+    }
+  </script>
+</body>
+</html>
